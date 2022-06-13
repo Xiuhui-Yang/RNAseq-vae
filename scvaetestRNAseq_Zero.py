@@ -276,13 +276,13 @@ def train(svi, train_loader,adj, use_cuda=True):
     total_epoch_loss_train = epoch_loss / normalizer_train
     return total_epoch_loss_train
 
-celldata = H5ADataSet("dmerged.h5ad")
-adata = anndata.read_h5ad("dmerged.h5ad")
+celldata = H5ADataSet("preprocessed.h5ad")
+adata = anndata.read_h5ad("preprocessed.h5ad")
 
 NUMGENS = len(adata.var)
-dimZ = 64
+dimZ = 32
 dimG = 128
-BATCHSIZE = 5284
+BATCHSIZE = 7284
 LEARN_RATE = 1.0e-4
 USE_CUDA = True
 NUM_EPOCHS = 30

@@ -81,27 +81,24 @@ class GraphConvolution(Module):
                + str(self.out_features) + ')'
 
 class Encoder(nn.Module):
+    #编码器
     def __init__(self, in_dim, z_dim, nhid, hidden_dim, dropout):
         super().__init__()
-        self.gc1 = GraphConvolution(in_dim, nhid)
+        self.gc1 = GraphConvolution(in_dim, nhid)#图卷积
         self.dropout = dropout
-        self.fc1 = nn.Linear(nhid, hidden_dim)
+        self.fc1 = nn.Linear(nhid, hidden_dim)#线性层
         self.fc21 = nn.Linear(hidden_dim, z_dim)
         self.fc22 = nn.Linear(hidden_dim, z_dim)
         self.softplus = nn.Softplus()
-
+        
     def forward(self, x,adj):
-
-        x = torch.where(torch.isnan(x),torch.full_like(x,0),x)
-        x = torch.where(torch.isinf(x), torch.full_like(x, 10), x)
-        x = F.relu(self.gc1(x, adj))
+        x = F.relu(self.gc1(x, adj))#图卷积
         x = F.dropout(x, self.dropout, training=self.training)
-        hidden = self.softplus(self.fc1(x))
-        #temp = self.fc1(x)
-        #temp1 =  np.dot(x.cpu().detach(), self.fc1.weight.T.cpu().detach())
+        hidden = self.softplus(self.fc1(x))#线性层
         z_loc = self.softplus(self.fc21(hidden))
         z_scale = torch.exp(self.softplus(self.fc22(hidden)))
         return z_loc, z_scale
+
 
 class Decoder(nn.Module):
     def __init__(self, in_dim, z_dim, hidden_dim):
@@ -142,38 +139,28 @@ class VAE(PyroBaseModuleClass):
     def model(self, x,adj):
         pyro.module("decoder", self)
         with pyro.plate("data", x.shape[0]):
-            z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
+            z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))#正态分布
             z_scale = x.new_ones(torch.Size((x.shape[0], self.n_latent)))
+            z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))#与guid中同名sample计算KL损失
+            count, prob = self.decoder(z)#解码
 
-            z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
-
-            count, prob = self.decoder(z)
-            k, z_dist, dist_prob = self._get_clusters(z)
-
-            # get embeddings (discrete representations)
+            k, z_dist, dist_prob = self._get_clusters(z)#细胞类型数先验
             z_q = self._get_embeddings(k)
             count1, prob1 = self.decoder1(z_q)
-            #px_rate = px_scale
 
-            #theta = torch.exp(self.log_theta)
-            #glog = self.gate_logits
-
-            #nb_logits = (px_rate + 1e-4).log()
-
-
-            x_dist = dist.ZeroInflatedNegativeBinomial(total_count=count,probs=prob, gate_logits=self.gate_logits)
+            x_dist = dist.ZeroInflatedNegativeBinomial(total_count=count,probs=prob, gate_logits=self.gate_logits)#参数重分布
             x_dist1 = dist.ZeroInflatedNegativeBinomial(total_count=count1,probs=prob1, gate_logits=self.gate_logits)
-            #x_dist = dist.Normal()
 
-            pyro.sample("obs1", x_dist.to_event(1), obs=x)
+            pyro.sample("obs1", x_dist.to_event(1), obs=x)#重构损失
             pyro.sample("obs2", x_dist1.to_event(1), obs=x)
 
     def guid(self, x,adj):
         pyro.module("encoder", self)
         with pyro.plate("data", x.shape[0]):
             x_ = torch.log(1+x)
-            [qz_m, qz_v] = self.encoder(x_,adj)
-            pyro.sample("latent", dist.Normal(qz_m,qz_v).to_event(1))
+            [qz_m, qz_v] = self.encoder(x_,adj)#编码
+            pyro.sample("latent", dist.Normal(qz_m,qz_v).to_event(1))#与model中同名sample计算KL损失
+
 
 
     def getZ(self, x,adj):

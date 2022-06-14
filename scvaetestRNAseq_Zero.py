@@ -280,7 +280,7 @@ celldata = H5ADataSet("preprocessed.h5ad")
 adata = anndata.read_h5ad("preprocessed.h5ad")
 
 NUMGENS = len(adata.var)
-dimZ = 32
+dimZ = 64
 dimG = 128
 BATCHSIZE = 7284
 LEARN_RATE = 1.0e-4

@@ -152,7 +152,7 @@ class VAE(PyroBaseModuleClass):
 
             # get embeddings (discrete representations)
             z_q = self._get_embeddings(k)
-            count1, prob1 = self.decoder(z_q)
+            count1, prob1 = self.decoder1(z_q)
             #px_rate = px_scale
 
             #theta = torch.exp(self.log_theta)
